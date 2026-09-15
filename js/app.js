@@ -45,6 +45,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+	async function openGroup(fileId, tabName) {
+    currentGroup = { fileId, tabName };
+    window.history.pushState({}, '', `?file=${fileId}&tab=${tabName}`);
+
+    screenDashboard.classList.remove('active');
+    screenGroup.classList.add('active');
+    btnBack.classList.remove('hidden');
+    navTitle.textContent = tabName;
+
+    await loadGroupData();
+    }
+
+    // Für onclick-Attribute im HTML verfügbar machen
+    window.openGroup = openGroup;
+
   // --- DASHBOARD ---
   function renderDashboard() {
     screenGroup.classList.add('hidden');
