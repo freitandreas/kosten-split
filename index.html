@@ -19,8 +19,8 @@
       <!-- Screen 1: Gruppenübersicht -->
       <section id="screen-dashboard" class="screen active">
         <div class="section-header">
-          <h2>Meine Gruppen</h2>
-          <button id="btn-add-file" class="btn btn-primary">+ Sheet / Gruppe</button>
+          <h2>Meine Kostenübersichten</h2>
+          <button id="btn-add-file" class="btn btn-primary">+ hinzufügen</button>
         </div>
         <div id="groups-list" class="card-list"></div>
       </section>
@@ -35,7 +35,7 @@
 
         <div class="section-header">
           <h3>Ausgaben</h3>
-          <button id="btn-add-tx" class="btn btn-primary">+ Ausgabe</button>
+          <button id="btn-add-tx" class="btn btn-primary">+ hinzufügen</button>
         </div>
         <div id="transactions-list" class="card-list"></div>
       </section>
@@ -54,10 +54,29 @@
           <label>Bezeichnung</label>
           <input type="text" id="tx-desc" required placeholder="z. B. Abendessen">
 
-          <label>Betrag (€)</label>
-          <input type="number" step="0.01" id="tx-amount" required placeholder="0.00">
+          <div style="display:flex; gap:10px;">
+            <div style="flex:1;">
+              <label>Betrag (€)</label>
+              <input type="number" step="0.01" id="tx-amount" required placeholder="0.00">
+            </div>
+            <div style="flex:1;">
+              <label>Datum</label>
+              <input type="date" id="tx-date" required>
+            </div>
+          </div>
 
-          <label>Zahlende Person</label>
+          <label style="margin-top:8px;">Kategorie</label>
+          <input type="text" id="tx-category" list="category-suggestions" placeholder="z. B. Essen & Trinken">
+          <datalist id="category-suggestions">
+            <option value="Essen & Trinken">
+            <option value="Unterkunft">
+            <option value="Transport">
+            <option value="Einkauf">
+            <option value="Freizeit">
+            <option value="Sonstiges">
+          </datalist>
+
+          <label style="margin-top:8px;">Zahlende Person</label>
           <select id="tx-payer" required></select>
 
           <label class="checkbox-label" style="margin-top:8px;">
@@ -111,9 +130,16 @@
     <div id="modal-add-group" class="modal hidden">
       <div class="modal-content card">
         <h3>Sheet / Gruppe verknüpfen</h3>
+
+        <!-- Bereich für bereits bekannte Dateien -->
+        <div id="known-files-box" class="hidden" style="margin-bottom:16px;">
+          <label><strong>Bereits verknüpfte Google Sheets:</strong></label>
+          <div id="known-files-list" style="display:flex; flex-direction:column; gap:6px; margin-top:6px;"></div>
+          <hr style="border:0; border-top:1px solid var(--border); margin:16px 0;">
+        </div>
         
-        <label>Google Sheet URL oder ID</label>
-        <input type="text" id="sheet-url-id" placeholder="https://docs.google.com/spreadsheets/d/..." required>
+        <label><strong>Neues Google Sheet verknüpfen (URL oder ID):</strong></label>
+        <input type="text" id="sheet-url-id" placeholder="https://docs.google.com/spreadsheets/d/..." style="margin-top:4px;">
         
         <button type="button" id="btn-scan-sheet" class="btn btn-secondary" style="margin-top:8px; width:100%;">
           Sheet scannen

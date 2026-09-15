@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentScannedFileId = '';
   let currentScannedFileName = '';
 
-  // --- SCREEN SWITCHER (Verhindert leere Seiten) ---
+  // --- SCREEN SWITCHER ---
   function switchScreen(targetScreen) {
     screenDashboard.classList.remove('active');
     screenDashboard.classList.add('hidden');
@@ -97,9 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
         persons: res.persons || []
       };
 
-      // Geladene Personen direkt im globalen Storage registrieren
       currentData.persons.forEach(p => Storage.addGlobalPerson(p.name));
-
       renderGroupView();
     } catch (err) {
       alert("Fehler beim Laden: " + err.message);
@@ -122,15 +120,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.getElementById('transactions-list').innerHTML = currentData.transactions.length === 0
       ? '<p class="text-muted">Noch keine Ausgaben eingetragen.</p>'
-      : currentData.transactions.map(tx => `
-        <div class="card tx-item" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:8px;" onclick="editTransaction('${tx.id}')">
-          <div>
-            <strong>${tx.description || (tx.compensation ? 'Ausgleichszahlung' : 'Ausgabe')}</strong>
-            <div class="payer-info" style="font-size:0.8rem; color:#64748b;">Bezahlt von ${tx.payer}</div>
-          </div>
-          <div class="amount" style="font-weight:bold;">${Number(tx.amount).toFixed(2)} €</div>
-        </div>
-      `).join('');
+      : currentData.transactions.map(tx => {
+          // Datumsformatierung für die Kachel (z. B. 15.09.2026)
+          let dateFormatted = '';
+          if (tx.timestamp) {
+            const d = new Date(tx.timestamp);
+            if (!isNaN(d.getTime())) {
+              dateFormatted = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            }
+          }
+
+          return `
+            <div class="card tx-item" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:8px;" onclick="editTransaction('${tx.id}')">
+              <div>
+                <strong>${tx.description || (tx.compensation ? 'Ausgleichszahlung' : 'Ausgabe')}</strong>
+                <div class="payer-info" style="font-size:0.8rem; color:#64748b;">
+                  Bezahlt von ${tx.payer} ${tx.category ? `• <em>${tx.category}</em>` : ''} ${dateFormatted ? `• ${dateFormatted}` : ''}
+                </div>
+              </div>
+              <div class="amount" style="font-weight:bold;">${Number(tx.amount).toFixed(2)} €</div>
+            </div>
+          `;
+        }).join('');
   }
 
   // --- TRANSAKTION ERSTELLEN / BEARBEITEN / LÖSCHEN ---
@@ -193,9 +204,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     formTx.reset();
     document.getElementById('tx-id').value = '';
+    document.getElementById('tx-date').value = new Date().toISOString().split('T')[0]; // Standard: Heute
+    document.getElementById('tx-category').value = '';
     document.getElementById('modal-tx-title').textContent = 'Neue Ausgabe';
     txAutoSplitCheckbox.checked = true;
-    btnTxDelete.classList.add('hidden'); // Beim Erstellen ausblenden
+    btnTxDelete.classList.add('hidden');
 
     const payerSelect = document.getElementById('tx-payer');
     payerSelect.innerHTML = activePersons.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
@@ -213,10 +226,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tx-id').value = tx.id;
     document.getElementById('tx-desc').value = tx.description || '';
     document.getElementById('tx-amount').value = tx.amount;
+    
+    // Datum setzen
+    if (tx.timestamp) {
+      const d = new Date(tx.timestamp);
+      document.getElementById('tx-date').value = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    } else {
+      document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+    }
+
+    document.getElementById('tx-category').value = tx.category || '';
     document.getElementById('tx-compensation').checked = !!tx.compensation;
     document.getElementById('modal-tx-title').textContent = 'Ausgabe bearbeiten';
     txAutoSplitCheckbox.checked = false;
-    btnTxDelete.classList.remove('hidden'); // Beim Bearbeiten anzeigen
+    btnTxDelete.classList.remove('hidden');
 
     const payerSelect = document.getElementById('tx-payer');
     payerSelect.innerHTML = activePersons.map(p => 
@@ -233,7 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!confirm('Möchtest du diese Ausgabe wirklich löschen?')) return;
 
-    // Optimistic UI Update
     currentData.transactions = currentData.transactions.filter(t => t.id !== txId);
     modalTx.classList.add('hidden');
     renderGroupView();
@@ -259,11 +281,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (document.getElementById('b_honeypot').value !== '') return;
 
+    const dateVal = document.getElementById('tx-date').value;
+    const isoTimestamp = dateVal ? new Date(dateVal).toISOString() : new Date().toISOString();
+
     const tx = {
       id: document.getElementById('tx-id').value || 'tx_' + Date.now(),
-      timestamp: new Date().toISOString(),
+      timestamp: isoTimestamp,
       description: document.getElementById('tx-desc').value,
       amount: parseFloat(document.getElementById('tx-amount').value),
+      category: document.getElementById('tx-category').value.trim(),
       payer: document.getElementById('tx-payer').value,
       compensation: document.getElementById('tx-compensation').checked,
       splits: getFormSplits()
@@ -298,7 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function renderPersonsList() {
-    // 1. Liste der Personen im aktuellen Projekt
     const container = document.getElementById('persons-list');
     container.innerHTML = currentData.persons.length === 0
       ? '<p class="text-muted" style="margin-top:10px;">Noch keine Personen angelegt.</p>'
@@ -311,7 +336,6 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       `).join('');
 
-    // 2. Vorschläge aus anderen Projekten rendern
     const globalPersons = Storage.getGlobalPersons();
     const currentPersonNames = currentData.persons.map(p => p.name.toLowerCase());
     const suggestions = globalPersons.filter(name => !currentPersonNames.includes(name.toLowerCase()));
@@ -336,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentData.persons.some(p => p.name.toLowerCase() === name.toLowerCase())) return;
 
     currentData.persons.push({ name, archived: false });
-    Storage.addGlobalPerson(name); // Auch im Storage registrieren
+    Storage.addGlobalPerson(name);
 
     renderPersonsList();
 
@@ -373,8 +397,34 @@ document.addEventListener('DOMContentLoaded', () => {
   btnAddFile.addEventListener('click', () => {
     document.getElementById('sheet-url-id').value = '';
     scanResults.classList.add('hidden');
+
+    // Bekannte Dateien anzeigen
+    const uniqueFiles = Storage.getUniqueFiles();
+    const knownFilesBox = document.getElementById('known-files-box');
+    const knownFilesList = document.getElementById('known-files-list');
+
+    if (uniqueFiles.length > 0) {
+      knownFilesBox.classList.remove('hidden');
+      knownFilesList.innerHTML = uniqueFiles.map(f => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
+          <div>
+            <strong>${f.fileName}</strong>
+            <div style="font-size:0.75rem; color:var(--text-muted);">${f.fileId}</div>
+          </div>
+          <button class="btn btn-sm btn-secondary" onclick="selectKnownFile('${f.fileId}')">Auswählen</button>
+        </div>
+      `).join('');
+    } else {
+      knownFilesBox.classList.add('hidden');
+    }
+
     modalAddGroup.classList.remove('hidden');
   });
+
+  window.selectKnownFile = function(fileId) {
+    document.getElementById('sheet-url-id').value = fileId;
+    btnScanSheet.click(); // Automatisch den Scan ausführen
+  };
 
   document.getElementById('btn-add-group-cancel').addEventListener('click', () => {
     modalAddGroup.classList.add('hidden');
