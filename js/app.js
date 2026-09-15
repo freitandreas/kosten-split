@@ -33,20 +33,15 @@ document.addEventListener('DOMContentLoaded', () => {
   init();
 
   async function init() {
-    if (!Storage.getGasUrl()) {
-      const url = prompt("Bitte gib deine Google Apps Script Web-App URL ein:");
-      if (url) Storage.setGasUrl(url.trim());
-    }
-
     const urlParams = new URLSearchParams(window.location.search);
     const fileId = urlParams.get('file');
     const tabName = urlParams.get('tab');
 
     if (fileId && tabName) {
-      Storage.saveGroup(fileId, tabName, tabName);
-      openGroup(fileId, tabName);
+        Storage.saveGroup(fileId, tabName, tabName);
+        openGroup(fileId, tabName);
     } else {
-      renderDashboard();
+        renderDashboard();
     }
   }
 
