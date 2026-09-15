@@ -44,6 +44,11 @@ document.addEventListener('DOMContentLoaded', () => {
         renderDashboard();
     }
   }
+	function extractFileId(input) {
+		if (!input) return '';
+		const match = input.trim().match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+		return match && match[1] ? match[1] : input.trim();
+	}
 
 	async function openGroup(fileId, tabName) {
     currentGroup = { fileId, tabName };
@@ -338,36 +343,31 @@ document.addEventListener('DOMContentLoaded', () => {
     modalAddGroup.classList.add('hidden');
   });
 
-  btnScanSheet.addEventListener('click', async () => {
-    const input = document.getElementById('sheet-url-id').value;
-    if (!input) return alert('Bitte gib eine URL oder File ID ein.');
+  btnScan.addEventListener('click', async () => {
+		const rawInput = inputSheetUrl.value;
+		const fileId = extractFileId(rawInput); // Extrahiert die ID, egal ob URL oder reine ID
 
-    currentScannedFileId = extractFileId(input);
-    
-    try {
-      btnScanSheet.textContent = 'Scanne...';
-      const res = await API.request('scan', { fileId: currentScannedFileId });
-      currentScannedFileName = res.fileName;
+		if (!fileId) {
+			alert("Bitte gib eine gültige Google Sheet URL oder File-ID ein.");
+			return;
+		}
 
-      const tabsContainer = document.getElementById('existing-tabs-list');
-      if (res.validTabs.length === 0) {
-        tabsContainer.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Keine gültigen Gruppen-Tabs gefunden.</p>';
-      } else {
-        tabsContainer.innerHTML = res.validTabs.map(tab => `
-          <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; padding:8px 12px; border-radius:6px; border:1px solid var(--border);">
-            <span>${tab}</span>
-            <button class="btn btn-sm btn-primary" onclick="importGroup('${currentScannedFileId}', '${currentScannedFileName}', '${tab}')">Hinzufügen</button>
-          </div>
-        `).join('');
-      }
+		try {
+			btnScan.disabled = true;
+			btnScan.textContent = 'Scanne...';
 
-      scanResults.classList.remove('hidden');
-    } catch (err) {
-      alert('Fehler beim Scannen: ' + err.message);
-    } finally {
-      btnScanSheet.textContent = 'Sheet scannen';
-    }
-  });
+			// API-Aufruf mit der bereinigten File-ID
+			const res = await API.request('scan', { fileId });
+			
+			// Scan-Ergebnisse verarbeiten (z.B. gefundene Tabs im Dashboard anzeigen)
+			renderScanResults(res.fileName, res.validTabs, fileId);
+		} catch (err) {
+			alert(`Fehler beim Scannen: ${err.message}`);
+		} finally {
+			btnScan.disabled = false;
+			btnScan.textContent = 'Scannen';
+		}
+	});
 
   window.importGroup = function(fileId, fileName, tabName) {
     Storage.saveGroup(fileId, fileName, tabName);
