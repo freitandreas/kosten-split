@@ -1,3 +1,5 @@
+// js/balances.js
+
 // Berechnungen für Salden und Schulden
 const Balances = {
   calculate(transactions, persons) {

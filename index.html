@@ -30,7 +30,7 @@
         <div id="balances-card" class="card">
           <h3>Bilanz</h3>
           <div id="balances-list"></div>
-          <button id="btn-manage-persons" class="btn btn-secondary btn-sm">Personen verwalten</button>
+          <button id="btn-manage-persons" class="btn btn-secondary btn-sm" style="margin-top:10px;">Personen verwalten</button>
         </div>
 
         <div class="section-header">
@@ -60,24 +60,27 @@
           <label>Zahlende Person</label>
           <select id="tx-payer" required></select>
 
-          <label class="checkbox-label">
+          <label class="checkbox-label" style="margin-top:8px;">
             <input type="checkbox" id="tx-compensation"> 
             Ist eine Ausgleichszahlung (Rückzahlung)
           </label>
 
-          <div class="split-section">
-            <div class="split-header">
-              <label>Aufteilung</label>
+          <div class="split-section" style="margin-top:12px;">
+            <div class="split-header" style="display:flex; justify-content:space-between; align-items:center;">
+              <label><strong>Aufteilung</strong></label>
               <label class="checkbox-label">
                 <input type="checkbox" id="tx-auto-split" checked> Gleichmäßig
               </label>
             </div>
-            <div id="tx-splits-container"></div>
+            <div id="tx-splits-container" style="margin-top:8px;"></div>
           </div>
 
-          <div class="modal-actions">
-            <button type="button" id="btn-tx-cancel" class="btn btn-secondary">Abbrechen</button>
-            <button type="submit" class="btn btn-primary">Speichern</button>
+          <div class="modal-actions" style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
+            <button type="button" id="btn-tx-delete" class="btn btn-danger hidden" style="background:#ef4444; color:white;">Löschen</button>
+            <div style="display:flex; gap:8px; margin-left:auto;">
+              <button type="button" id="btn-tx-cancel" class="btn btn-secondary">Abbrechen</button>
+              <button type="submit" class="btn btn-primary">Speichern</button>
+            </div>
           </div>
         </form>
       </div>
@@ -87,44 +90,52 @@
     <div id="modal-persons" class="modal hidden">
       <div class="modal-content card">
         <h3>Personen verwalten</h3>
-        <div class="add-person-box">
-          <input type="text" id="new-person-name" placeholder="Name eingeben">
+        
+        <div class="add-person-box" style="display:flex; gap:8px; margin-top:10px;">
+          <input type="text" id="new-person-name" placeholder="Name eingeben" style="flex:1;">
           <button id="btn-add-person" class="btn btn-primary">Hinzufügen</button>
         </div>
-        <div id="persons-list" class="persons-list"></div>
+
+        <!-- Vorschläge aus anderen Projekten -->
+        <div id="person-suggestions-box" style="margin-top:12px;" class="hidden">
+          <small class="text-muted" style="display:block; margin-bottom:4px;">Aus anderen Projekten vorschlagen:</small>
+          <div id="person-suggestions" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+        </div>
+
+        <div id="persons-list" class="persons-list" style="margin-top:15px;"></div>
         <button id="btn-persons-close" class="btn btn-secondary" style="margin-top:15px; width:100%;">Fertig</button>
       </div>
     </div>
+
     <!-- Modal: Sheet / Gruppe hinzufügen -->
     <div id="modal-add-group" class="modal hidden">
-    <div class="modal-content card">
+      <div class="modal-content card">
         <h3>Sheet / Gruppe verknüpfen</h3>
         
         <label>Google Sheet URL oder ID</label>
         <input type="text" id="sheet-url-id" placeholder="https://docs.google.com/spreadsheets/d/..." required>
         
         <button type="button" id="btn-scan-sheet" class="btn btn-secondary" style="margin-top:8px; width:100%;">
-        Sheet scannen
+          Sheet scannen
         </button>
 
-        <!-- Bereich nach dem Scannen -->
         <div id="scan-results" class="hidden" style="margin-top:16px;">
-        <label><strong>Gefundene Gruppen (Tabs):</strong></label>
-        <div id="existing-tabs-list" style="margin: 8px 0; display:flex; flex-direction:column; gap:6px;"></div>
+          <label><strong>Gefundene Gruppen (Tabs):</strong></label>
+          <div id="existing-tabs-list" style="margin: 8px 0; display:flex; flex-direction:column; gap:6px;"></div>
 
-        <hr style="border:0; border-top:1px solid var(--border); margin:16px 0;">
+          <hr style="border:0; border-top:1px solid var(--border); margin:16px 0;">
 
-        <label><strong>Oder neuen Tab (Gruppe) erstellen:</strong></label>
-        <div style="display:flex; gap:8px; margin-top:6px;">
-            <input type="text" id="new-tab-name" placeholder="z. B. Italien 2026">
+          <label><strong>Oder neuen Tab (Gruppe) erstellen:</strong></label>
+          <div style="display:flex; gap:8px; margin-top:6px;">
+            <input type="text" id="new-tab-name" placeholder="z. B. Italien 2026" style="flex:1;">
             <button type="button" id="btn-create-tab" class="btn btn-primary">Erstellen</button>
-        </div>
+          </div>
         </div>
 
-        <div class="modal-actions">
-        <button type="button" id="btn-add-group-cancel" class="btn btn-secondary">Abbrechen</button>
+        <div class="modal-actions" style="margin-top:16px;">
+          <button type="button" id="btn-add-group-cancel" class="btn btn-secondary" style="width:100%;">Abbrechen</button>
         </div>
-    </div>
+      </div>
     </div>
   </div>
 

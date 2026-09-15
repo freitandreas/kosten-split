@@ -1,13 +1,10 @@
-// Storage Manager für LocalStorage
 const STORAGE_KEY = 'kostensplit_groups';
+const ALL_PERSONS_KEY = 'kostensplit_all_persons';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbzlDke4foZxaBcN5FWZYoH6uHhdc80L53OsHld93Q6ArDW5ptaY5ehqyRb2FOMlKPYe/exec';
 
 const Storage = {
   getGasUrl() {
     return GAS_URL;
-  },
-  setGasUrl(url) {
-    // Wird nicht mehr benötigt
   },
   getGroups() {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -18,6 +15,20 @@ const Storage = {
     if (!exists) {
       groups.push({ fileId, fileName, tabName });
       localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+    }
+  },
+  // Globale Personen verwalten
+  getGlobalPersons() {
+    return JSON.parse(localStorage.getItem(ALL_PERSONS_KEY) || '[]');
+  },
+  addGlobalPerson(name) {
+    if (!name || typeof name !== 'string') return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const persons = this.getGlobalPersons();
+    if (!persons.some(p => p.toLowerCase() === trimmed.toLowerCase())) {
+      persons.push(trimmed);
+      localStorage.setItem(ALL_PERSONS_KEY, JSON.stringify(persons));
     }
   }
 };

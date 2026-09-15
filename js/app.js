@@ -1,10 +1,9 @@
 // js/app.js - Hauptlogik & UI Controller
 
-// Hilfsfunktion: Extrahiert die ID aus einer Google Sheet URL oder nimmt direkte ID
 function extractFileId(input) {
-	if (!input) return '';
-	const match = input.trim().match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-	return match && match[1] ? match[1] : input.trim();
+  if (!input) return '';
+  const match = input.trim().match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  return match && match[1] ? match[1] : input.trim();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -29,6 +28,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentScannedFileId = '';
   let currentScannedFileName = '';
 
+  // --- SCREEN SWITCHER (Verhindert leere Seiten) ---
+  function switchScreen(targetScreen) {
+    screenDashboard.classList.remove('active');
+    screenDashboard.classList.add('hidden');
+    screenGroup.classList.remove('active');
+    screenGroup.classList.add('hidden');
+
+    targetScreen.classList.remove('hidden');
+    targetScreen.classList.add('active');
+  }
+
   // --- INITIALISIERUNG ---
   init();
 
@@ -38,32 +48,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const tabName = urlParams.get('tab');
 
     if (fileId && tabName) {
-        Storage.saveGroup(fileId, tabName, tabName);
-        openGroup(fileId, tabName);
+      Storage.saveGroup(fileId, tabName, tabName);
+      openGroup(fileId, tabName);
     } else {
-        renderDashboard();
+      renderDashboard();
     }
   }
 
-	async function openGroup(fileId, tabName) {
+  async function openGroup(fileId, tabName) {
     currentGroup = { fileId, tabName };
     window.history.pushState({}, '', `?file=${fileId}&tab=${tabName}`);
 
-    screenDashboard.classList.remove('active');
-    screenGroup.classList.add('active');
+    switchScreen(screenGroup);
     btnBack.classList.remove('hidden');
     navTitle.textContent = tabName;
 
     await loadGroupData();
-    }
+  }
 
-    // Für onclick-Attribute im HTML verfügbar machen
-    window.openGroup = openGroup;
+  window.openGroup = openGroup;
 
   // --- DASHBOARD ---
   function renderDashboard() {
-    screenGroup.classList.add('hidden');
-    screenDashboard.classList.add('active');
+    switchScreen(screenDashboard);
     btnBack.classList.add('hidden');
     navTitle.textContent = "KostenSplit";
 
@@ -72,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     container.innerHTML = groups.length === 0 
       ? '<p class="text-muted">Noch keine Gruppen verknüpft.</p>'
       : groups.map(g => `
-          <div class="card group-item" onclick="openGroup('${g.fileId}', '${g.tabName}')">
+          <div class="card group-item" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:8px;" onclick="openGroup('${g.fileId}', '${g.tabName}')">
             <div>
               <strong>${g.tabName}</strong>
               <div style="font-size:0.8rem; color:#64748b;">${g.fileName}</div>
@@ -82,18 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `).join('');
   }
 
-  window.openGroup = async function(fileId, tabName) {
-    currentGroup = { fileId, tabName };
-    window.history.pushState({}, '', `?file=${fileId}&tab=${tabName}`);
-
-    screenDashboard.classList.remove('active');
-    screenGroup.classList.add('active');
-    btnBack.classList.remove('hidden');
-    navTitle.textContent = tabName;
-
-    await loadGroupData();
-  };
-
   async function loadGroupData() {
     try {
       const res = await API.request('getData', { fileId: currentGroup.fileId, tabName: currentGroup.tabName });
@@ -101,6 +96,10 @@ document.addEventListener('DOMContentLoaded', () => {
         transactions: res.transactions || [],
         persons: res.persons || []
       };
+
+      // Geladene Personen direkt im globalen Storage registrieren
+      currentData.persons.forEach(p => Storage.addGlobalPerson(p.name));
+
       renderGroupView();
     } catch (err) {
       alert("Fehler beim Laden: " + err.message);
@@ -115,29 +114,30 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('balances-list').innerHTML = Object.entries(balances).length === 0
       ? '<p class="text-muted" style="font-size:0.85rem;">Keine aktiven Personen angelegt.</p>'
       : Object.entries(balances).map(([name, val]) => `
-        <div class="balance-row">
+        <div class="balance-row" style="display:flex; justify-content:space-between; padding:4px 0;">
           <span>${name}</span>
-          <span class="${val >= 0 ? 'balance-positive' : 'balance-negative'}">${val.toFixed(2)} €</span>
+          <span class="${val >= 0 ? 'balance-positive' : 'balance-negative'}" style="font-weight:bold; color: ${val >= 0 ? '#10b981' : '#ef4444'}">${val.toFixed(2)} €</span>
         </div>
       `).join('');
 
     document.getElementById('transactions-list').innerHTML = currentData.transactions.length === 0
       ? '<p class="text-muted">Noch keine Ausgaben eingetragen.</p>'
       : currentData.transactions.map(tx => `
-        <div class="card tx-item" onclick="editTransaction('${tx.id}')">
+        <div class="card tx-item" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; padding:12px; margin-bottom:8px;" onclick="editTransaction('${tx.id}')">
           <div>
             <strong>${tx.description || (tx.compensation ? 'Ausgleichszahlung' : 'Ausgabe')}</strong>
-            <div class="payer-info">Bezahlt von ${tx.payer}</div>
+            <div class="payer-info" style="font-size:0.8rem; color:#64748b;">Bezahlt von ${tx.payer}</div>
           </div>
-          <div class="amount">${Number(tx.amount).toFixed(2)} €</div>
+          <div class="amount" style="font-weight:bold;">${Number(tx.amount).toFixed(2)} €</div>
         </div>
       `).join('');
   }
 
-  // --- TRANSAKTION ERSTELLEN / BEARBEITEN & AUTOMATISCHER SPLIT ---
+  // --- TRANSAKTION ERSTELLEN / BEARBEITEN / LÖSCHEN ---
   const formTx = document.getElementById('form-tx');
   const txAmountInput = document.getElementById('tx-amount');
   const txAutoSplitCheckbox = document.getElementById('tx-auto-split');
+  const btnTxDelete = document.getElementById('btn-tx-delete');
 
   function calculateAutoSplit() {
     if (!txAutoSplitCheckbox.checked) return;
@@ -172,9 +172,9 @@ document.addEventListener('DOMContentLoaded', () => {
     container.innerHTML = persons.map(p => {
       const val = existingSplits ? (existingSplits[p.name] || 0) : 0;
       return `
-        <div class="split-row">
+        <div class="split-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
           <span>${p.name}</span>
-          <input type="number" step="0.01" class="split-input" data-person="${p.name}" value="${val}">
+          <input type="number" step="0.01" class="split-input" data-person="${p.name}" value="${val}" style="width:90px;">
         </div>
       `;
     }).join('');
@@ -195,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tx-id').value = '';
     document.getElementById('modal-tx-title').textContent = 'Neue Ausgabe';
     txAutoSplitCheckbox.checked = true;
+    btnTxDelete.classList.add('hidden'); // Beim Erstellen ausblenden
 
     const payerSelect = document.getElementById('tx-payer');
     payerSelect.innerHTML = activePersons.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
@@ -215,6 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('tx-compensation').checked = !!tx.compensation;
     document.getElementById('modal-tx-title').textContent = 'Ausgabe bearbeiten';
     txAutoSplitCheckbox.checked = false;
+    btnTxDelete.classList.remove('hidden'); // Beim Bearbeiten anzeigen
 
     const payerSelect = document.getElementById('tx-payer');
     payerSelect.innerHTML = activePersons.map(p => 
@@ -224,6 +226,25 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSplitsInputs(activePersons, tx.splits);
     modalTx.classList.remove('hidden');
   };
+
+  btnTxDelete.addEventListener('click', async () => {
+    const txId = document.getElementById('tx-id').value;
+    if (!txId) return;
+
+    if (!confirm('Möchtest du diese Ausgabe wirklich löschen?')) return;
+
+    // Optimistic UI Update
+    currentData.transactions = currentData.transactions.filter(t => t.id !== txId);
+    modalTx.classList.add('hidden');
+    renderGroupView();
+
+    try {
+      await API.request('deleteTransaction', {}, { fileId: currentGroup.fileId, tabName: currentGroup.tabName, id: txId });
+    } catch (err) {
+      alert("Fehler beim Löschen: " + err.message);
+      loadGroupData();
+    }
+  });
 
   function getFormSplits() {
     const splits = {};
@@ -236,11 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
   formTx.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // Honeypot Prüfung
-    if (document.getElementById('b_honeypot').value !== '') {
-      console.warn("Bot erkannt.");
-      return;
-    }
+    if (document.getElementById('b_honeypot').value !== '') return;
 
     const tx = {
       id: document.getElementById('tx-id').value || 'tx_' + Date.now(),
@@ -252,7 +269,6 @@ document.addEventListener('DOMContentLoaded', () => {
       splits: getFormSplits()
     };
 
-    // Optimistic UI
     const existingIndex = currentData.transactions.findIndex(t => t.id === tx.id);
     if (existingIndex >= 0) currentData.transactions[existingIndex] = tx;
     else currentData.transactions.unshift(tx);
@@ -261,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderGroupView();
 
     try {
-      await API.request('saveTransaction', { fileId: currentGroup.fileId, tabName: currentGroup.tabName }, { transaction: tx });
+      await API.request('saveTransaction', {}, { fileId: currentGroup.fileId, tabName: currentGroup.tabName, transaction: tx });
     } catch (err) {
       alert("Fehler beim Speichern: " + err.message);
       loadGroupData();
@@ -270,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-tx-cancel').addEventListener('click', () => modalTx.classList.add('hidden'));
 
-  // --- PERSONEN VERWALTEN & ARCHIVIEREN ---
+  // --- PERSONEN VERWALTEN & PROJEKTÜBERGREIFENDE VORSCHLÄGE ---
   document.getElementById('btn-manage-persons').addEventListener('click', () => {
     renderPersonsList();
     modalPersons.classList.remove('hidden');
@@ -282,6 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function renderPersonsList() {
+    // 1. Liste der Personen im aktuellen Projekt
     const container = document.getElementById('persons-list');
     container.innerHTML = currentData.persons.length === 0
       ? '<p class="text-muted" style="margin-top:10px;">Noch keine Personen angelegt.</p>'
@@ -293,20 +310,34 @@ document.addEventListener('DOMContentLoaded', () => {
           </button>
         </div>
       `).join('');
+
+    // 2. Vorschläge aus anderen Projekten rendern
+    const globalPersons = Storage.getGlobalPersons();
+    const currentPersonNames = currentData.persons.map(p => p.name.toLowerCase());
+    const suggestions = globalPersons.filter(name => !currentPersonNames.includes(name.toLowerCase()));
+
+    const suggestionsBox = document.getElementById('person-suggestions-box');
+    const suggestionsContainer = document.getElementById('person-suggestions');
+
+    if (suggestions.length === 0) {
+      suggestionsBox.classList.add('hidden');
+    } else {
+      suggestionsBox.classList.remove('hidden');
+      suggestionsContainer.innerHTML = suggestions.map(name => `
+        <button class="btn btn-sm btn-secondary" style="background:#e2e8f0; border:none; font-size:0.8rem;" onclick="addPersonByName('${name}')">
+          + ${name}
+        </button>
+      `).join('');
+    }
   }
 
-  document.getElementById('btn-add-person').addEventListener('click', async () => {
-    const input = document.getElementById('new-person-name');
-    const name = input.value.trim();
+  async function addPersonByName(name) {
     if (!name) return;
-
-    if (currentData.persons.some(p => p.name.toLowerCase() === name.toLowerCase())) {
-      alert('Eine Person mit diesem Namen existiert bereits.');
-      return;
-    }
+    if (currentData.persons.some(p => p.name.toLowerCase() === name.toLowerCase())) return;
 
     currentData.persons.push({ name, archived: false });
-    input.value = '';
+    Storage.addGlobalPerson(name); // Auch im Storage registrieren
+
     renderPersonsList();
 
     try {
@@ -314,6 +345,17 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (err) {
       alert("Fehler beim Speichern der Person: " + err.message);
     }
+  }
+
+  window.addPersonByName = addPersonByName;
+
+  document.getElementById('btn-add-person').addEventListener('click', () => {
+    const input = document.getElementById('new-person-name');
+    const name = input.value.trim();
+    if (!name) return;
+
+    addPersonByName(name);
+    input.value = '';
   });
 
   window.toggleArchivePerson = async function(index) {
@@ -342,10 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rawInput = document.getElementById('sheet-url-id').value;
     if (!rawInput) return alert('Bitte gib eine URL oder File ID ein.');
 
-    // URL sofort bereinigen und reine ID speichern
     currentScannedFileId = extractFileId(rawInput);
-    
-    // Optisches Feedback im Eingabefeld (optional, zeigt die bereinigte ID an)
     document.getElementById('sheet-url-id').value = currentScannedFileId;
     
     try {
